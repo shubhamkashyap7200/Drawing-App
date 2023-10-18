@@ -53,7 +53,7 @@ struct Trapezoid: Shape {
         get { insetAmount }
         set { insetAmount = newValue }
     }
-
+    
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
@@ -216,12 +216,69 @@ struct Spirograph: Shape {
 
 
 struct Arrow: Shape {
+    var yOffset: CGFloat
+    var xOffset: CGFloat
+    
+    var animatableData: AnimatablePair<CFloat, CGFloat> {
+        get {
+            AnimatablePair(CFloat(yOffset), CGFloat(xOffset))
+        }
+        
+        set {
+            yOffset = CGFloat(newValue.first)
+            xOffset = CGFloat(newValue.second)
+        }
+    }
+    
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY - yOffset))
         
+        path.addLine(to: CGPoint(x: rect.midX - xOffset, y: rect.midY - yOffset))
+        path.addLine(to: CGPoint(x: rect.midX - xOffset, y: rect.maxY))
+        
+        path.addLine(to: CGPoint(x: rect.midX + xOffset, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.midX + xOffset, y: rect.midY - yOffset))
+        
+        
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY - yOffset))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
         
         return path
+    }
+}
+
+struct ColorCylingRect: View {
+    var colorCycle = 0.0
+    var steps = 100
+    
+    var body: some View {
+        ZStack {
+            ForEach(0..<steps) { value in
+                Rectangle()
+                    .inset(by: Double(value))
+                    .strokeBorder(
+                        LinearGradient(colors: [
+                            color(for: value, brightness: 1),
+                            color(for: value, brightness: 0.5)
+                        ], startPoint: .top, endPoint: .bottom)
+                        , lineWidth: 2
+                    )
+            }
+        }
+        .drawingGroup() // Does metal thing move to background view and then shows it
+    }
+    
+    func color(for value: Int, brightness: Double) -> Color {
+        var targetHue = Double(value) / Double(steps) + colorCycle
+        
+        if targetHue > 1 {
+            targetHue -= 1
+        }
+        
+        return Color(hue: targetHue, saturation: 1, brightness: brightness)
     }
 }
 
@@ -234,42 +291,40 @@ struct ContentView: View {
     //    @State private var insetAmount = 50.0
     //    @State private var rows = 4
     //    @State private var columns = 4
-    @State private var innerRadius = 125.0
-    @State private var outerRadius = 75.0
-    @State private var distance = 25.0
-    @State private var amount = 1.0
-    @State private var hue = 0.6
+    //    @State private var innerRadius = 125.0
+    //    @State private var outerRadius = 75.0
+    //    @State private var distance = 25.0
+    //    @State private var amount = 1.0
+    //    @State private var hue = 0.6
+    //    @State private var yOffset = 20.0
+    //    @State private var xOffset = 40.0
+    @State private var colorCycle = 0.0
+    @State private var useGradient = true
+    @State private var locX = 50.0
+    @State private var locY = 50.0
     
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            
-            Spirograph(innerRadius: Int(innerRadius), outerRadius: Int(outerRadius), distance: Int(distance), amount: amount)
-                .stroke(Color(hue: hue, saturation: 1.0, brightness: 1.0), lineWidth: 1.0)
-                .frame(width: 300, height: 300)
-            
-            Spacer()
-            
-            Group {
-                Text("Inner Radius: \(Int(innerRadius))")
-                Slider(value: $innerRadius, in: 10...150, step: 1)
-                    .padding([.horizontal, .bottom])
-                
-                Text("Outer Radius: \(Int(outerRadius))")
-                Slider(value: $outerRadius, in: 10...150, step: 1)
-                    .padding([.horizontal, .bottom])
-
-                Text("Distance: \(Int(distance))")
-                Slider(value: $distance, in: 1...150, step: 1)
-                    .padding([.horizontal, .bottom])
-                
-                Text("Amount: \(amount, format: .number.precision(.fractionLength(2)))")
-                Slider(value: $amount)
-                    .padding([.horizontal, .bottom])
-
-                Text("Color")
-                Slider(value: $hue)
-                    .padding(.horizontal)
+        VStack {
+            Toggle("Use gradient?", isOn: $useGradient)
+            ZStack {
+                GeometryReader { geometery in
+                    let w = geometery.size.width
+                    let h = geometery.size.height
+                    let m = min(w, h)
+                    let centerX = locX
+                    let centerY = locY
+                    
+                    VStack {
+                        if useGradient {
+                            let center = UnitPoint(x: centerX / w, y: centerY / h)
+                            RoundedRectangle(cornerRadius: 20.0)
+                            ColorCylingRect(colorCycle: colorCycle)
+                                .frame(width: 300, height: 300)
+                            Slider(value: $colorCycle)
+                                .padding()
+                        }
+                    }
+                }
             }
         }
     }
@@ -278,6 +333,62 @@ struct ContentView: View {
 #Preview {
     ContentView()
 }
+
+//ColorCylingCircle(amount: colorCycle)
+//    .frame(width: 300, height: 300)
+//Slider(value: $colorCycle)
+
+
+//Arrow(yOffset: yOffset, xOffset: xOffset)
+//    .frame(width: 300, height: 500)
+//    .foregroundStyle(.green)
+//
+//Spacer()
+//
+//Group {
+//    Text("yOffset")
+//    Slider(value: $yOffset, in: 0...100)
+//        .tint(.red)
+//        .padding()
+//    
+//    Text("xOffset")
+//    Slider(value: $xOffset, in: 20...80)
+//        .tint(.red)
+//        .padding()
+//}
+
+
+//VStack(spacing: 0) {
+//    Spacer()
+//
+//    Spirograph(innerRadius: Int(innerRadius), outerRadius: Int(outerRadius), distance: Int(distance), amount: amount)
+//        .stroke(Color(hue: hue, saturation: 1.0, brightness: 1.0), lineWidth: 1.0)
+//        .frame(width: 300, height: 300)
+//
+//    Spacer()
+//
+//    Group {
+//        Text("Inner Radius: \(Int(innerRadius))")
+//        Slider(value: $innerRadius, in: 10...150, step: 1)
+//            .padding([.horizontal, .bottom])
+//
+//        Text("Outer Radius: \(Int(outerRadius))")
+//        Slider(value: $outerRadius, in: 10...150, step: 1)
+//            .padding([.horizontal, .bottom])
+//
+//        Text("Distance: \(Int(distance))")
+//        Slider(value: $distance, in: 1...150, step: 1)
+//            .padding([.horizontal, .bottom])
+//
+//        Text("Amount: \(amount, format: .number.precision(.fractionLength(2)))")
+//        Slider(value: $amount)
+//            .padding([.horizontal, .bottom])
+//
+//        Text("Color")
+//        Slider(value: $hue)
+//            .padding(.horizontal)
+//    }
+//}
 
 
 //CheckerBoard(rows: rows, columns: columns)
@@ -310,7 +421,7 @@ struct ContentView: View {
 //            .frame(width: 200 * amount)
 //            .offset(x: -50, y: -80)
 //            .blendMode(.screen)
-//        
+//
 //        Circle()
 //            .fill(Color(red: 0.0, green: 1.0, blue: 0.0))
 //            .frame(width: 200 * amount)
@@ -324,19 +435,13 @@ struct ContentView: View {
 //
 //    }
 //    .frame(width: 300, height: 300)
-//    
+//
 //    Slider(value: $amount)
 //        .padding()
 //}
 //.frame(maxWidth: .infinity, maxHeight: .infinity)
 //.background(.black)
 //.ignoresSafeArea()
-
-
-
-//ColorCylingCircle(amount: colorCycle)
-//    .frame(width: 300, height: 300)
-//Slider(value: $colorCycle)
 
 
 //Text("SwiftUI Vs UIKit")
